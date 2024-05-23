@@ -1,4 +1,5 @@
 use ndarray::{s, Array2, Array3};
+use rand::Rng;
 use std::f64::consts::PI;
 mod plot;
 use plot::plot_heatmap;
@@ -8,6 +9,7 @@ const THETA: f64 = 1e-6; // 収束のしきい値
 const SIZE: usize = 50; // グリッドサイズ
 const T_SIZE: usize = 8; // 角度の離散化数
 const MAX_ITER: usize = 1000; // 価値反復の最大回数
+const NUM_SAMPLES: usize = 10; // ランダムサンプリングの回数
 
 // アクションを表す構造体
 #[derive(Clone)]
@@ -106,10 +108,14 @@ fn compute_value(
     j: usize,
     k: usize,
 ) -> f64 {
-    let mut max_value = f64::NEG_INFINITY;
+    let mut rng = rand::thread_rng();
+    let mut total_value = 0.0;
+    let mut valid_samples = 0;
 
-    // 各アクションに対して価値を計算
-    for action in actions {
+    // ランダムにNUM_SAMPLES回サンプリング
+    for _ in 0..NUM_SAMPLES {
+        let action_index = rng.gen_range(0..actions.len());
+        let action = &actions[action_index];
         let angle = k as f64 * 2.0 * PI / T_SIZE as f64;
         let ni = (i as isize
             + (action.delta_x * angle.cos() - action.delta_y * angle.sin()).round() as isize)
@@ -124,15 +130,12 @@ fn compute_value(
 
         // 範囲外チェック
         if ni >= SIZE || nj >= SIZE {
-            continue;
+            total_value += rewards[(i, j)] + GAMMA * values[(i, j, k)];
+        } else {
+            total_value += rewards[(i, j)] + GAMMA * values[(ni, nj, nk)];
         }
-
-        // 価値を計算
-        let value = rewards[(i, j)] + GAMMA * values[(ni, nj, nk)];
-        if value > max_value {
-            max_value = value;
-        }
+        valid_samples += 1;
     }
 
-    max_value
+    total_value / valid_samples as f64
 }
