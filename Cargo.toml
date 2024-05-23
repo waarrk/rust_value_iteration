@@ -1,0 +1,9 @@
+[package]
+name = "rust_value_iteration"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+itertools = "0.13.0"
+ndarray = "0.15.6"
+plotters = "0.3.6"
