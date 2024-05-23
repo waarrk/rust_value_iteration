@@ -1,6 +1,7 @@
 use ndarray::{s, Array2, Array3};
 use rand::Rng;
 use std::f64::consts::PI;
+use std::time::Instant;
 mod plot;
 use plot::plot_heatmap;
 
@@ -36,6 +37,9 @@ fn main() {
     // アクションの生成
     let actions = generate_actions(T_SIZE);
 
+    // 実行時間の計測開始
+    let start = Instant::now();
+
     // 価値反復法の実行
     for _ in 0..MAX_ITER {
         let mut delta: f64 = 0.0;
@@ -56,6 +60,12 @@ fn main() {
             break;
         }
     }
+
+    // 実行時間の計測終了
+    let duration = start.elapsed();
+
+    // 実行時間を表示
+    println!("実行時間: {:?}", duration);
 
     // 角度0の平面をArray2に変換してプロット
     let values_2d = values.slice(s![.., .., 0]).to_owned();
