@@ -6,7 +6,7 @@ mod plot;
 use plot::plot_heatmap;
 
 const GAMMA: f64 = 1.0; // 割引率
-const THETA: f64 = 1e-6; // 収束のしきい値
+const DELTA_LIMIT: f64 = 1e-6; // 収束のしきい値
 const SIZE: usize = 50; // グリッドサイズ
 const T_SIZE: usize = 8; // 角度の離散化数
 const MAX_ITER: usize = 1000; // 価値反復の最大回数
@@ -56,7 +56,7 @@ fn main() {
                 }
             }
         }
-        if delta < THETA {
+        if delta < DELTA_LIMIT {
             break;
         }
     }
