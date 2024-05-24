@@ -8,7 +8,7 @@ use plot::plot_heatmap;
 const GAMMA: f64 = 1.0; // 割引率
 const DELTA_LIMIT: f64 = 1e-6; // 収束のしきい値
 const SIZE: usize = 50; // グリッドサイズ
-const T_SIZE: usize = 8; // 角度の離散化数
+const THETA_SIZE: usize = 36; // 角度の離散化数
 const MAX_ITER: usize = 1000; // 価値反復の最大回数
 const NUM_SAMPLES: usize = 10; // ランダムサンプリングの回数
 
@@ -29,8 +29,8 @@ fn main() {
     rewards[goal] = 0.0;
 
     // 初期価値を-100に設定
-    let mut values = Array3::from_elem((SIZE, SIZE, T_SIZE), -100.0);
-    for t in 0..T_SIZE {
+    let mut values = Array3::from_elem((SIZE, SIZE, THETA_SIZE), -100.0);
+    for t in 0..THETA_SIZE {
         values[(goal.0, goal.1, t)] = 0.0;
     }
 
@@ -46,7 +46,7 @@ fn main() {
         let old_values = values.clone();
         for i in 0..SIZE {
             for j in 0..SIZE {
-                for theta in 0..T_SIZE {
+                for theta in 0..THETA_SIZE {
                     if (i, j) == goal {
                         continue;
                     }
@@ -119,7 +119,7 @@ fn compute_value(
         // ランダムにアクションを選択
         let action_index = rng.gen_range(0..actions.len());
         let action = &actions[action_index];
-        let angle = theta as f64 * 2.0 * PI / T_SIZE as f64;
+        let angle = theta as f64 * 2.0 * PI / THETA_SIZE as f64;
 
         // 移動後の状態を計算
         let ni = (i as isize
@@ -129,9 +129,9 @@ fn compute_value(
             + (action.delta_x * angle.sin() + action.delta_y * angle.cos()).round() as isize)
             as usize;
         let ntheta = ((theta as isize
-            + (action.delta_rot * T_SIZE as f64 / (2.0 * PI)).round() as isize
-            + T_SIZE as isize)
-            % T_SIZE as isize) as usize;
+            + (action.delta_rot * THETA_SIZE as f64 / (2.0 * PI)).round() as isize
+            + THETA_SIZE as isize)
+            % THETA_SIZE as isize) as usize;
 
         // グリッドの範囲内に収める
         let ni = ni.min(SIZE - 1).max(0);
