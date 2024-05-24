@@ -35,7 +35,7 @@ fn main() {
     }
 
     // アクションの生成
-    let actions = generate_actions(T_SIZE);
+    let actions = generate_actions();
 
     // 実行時間の計測開始
     let start = Instant::now();
@@ -74,38 +74,29 @@ fn main() {
 }
 
 // アクションを生成する関数
-fn generate_actions(t_size: usize) -> Vec<Action> {
+fn generate_actions() -> Vec<Action> {
     let mut actions = Vec::new();
 
-    // 各角度に対する前進と側方移動のアクションを生成
-    for i in 0..t_size {
-        let angle = i as f64 * 2.0 * PI / t_size as f64;
-        actions.push(Action {
-            delta_x: angle.cos(),
-            delta_y: angle.sin(),
-            delta_rot: 0.0,
-        });
-    }
+    // 右回転
+    actions.push(Action {
+        delta_x: 0.0,
+        delta_y: 0.0,
+        delta_rot: -2.0,
+    });
 
-    // 対角方向のアクションを追加
-    let diagonal_moves = vec![(1.0, 1.0), (-1.0, 1.0), (1.0, -1.0), (-1.0, -1.0)];
-    for &(dx, dy) in &diagonal_moves {
-        actions.push(Action {
-            delta_x: dx,
-            delta_y: dy,
-            delta_rot: 0.0,
-        });
-    }
+    // 前進
+    actions.push(Action {
+        delta_x: 1.0,
+        delta_y: 0.0,
+        delta_rot: 0.0,
+    });
 
-    // 回転アクションを生成
-    let delta_rotations = vec![PI / 4.0, -PI / 4.0, PI / 2.0];
-    for &delta_rot in &delta_rotations {
-        actions.push(Action {
-            delta_x: 0.0,
-            delta_y: 0.0,
-            delta_rot,
-        });
-    }
+    // 左回転
+    actions.push(Action {
+        delta_x: 0.0,
+        delta_y: 0.0,
+        delta_rot: 2.0,
+    });
 
     actions
 }
@@ -125,9 +116,12 @@ fn compute_value(
 
     // ランダムにNUM_SAMPLES回サンプリング
     for _ in 0..NUM_SAMPLES {
+        // ランダムにアクションを選択
         let action_index = rng.gen_range(0..actions.len());
         let action = &actions[action_index];
         let angle = theta as f64 * 2.0 * PI / T_SIZE as f64;
+
+        // 移動後の状態を計算
         let ni = (i as isize
             + (action.delta_x * angle.cos() - action.delta_y * angle.sin()).round() as isize)
             as usize;
@@ -139,13 +133,16 @@ fn compute_value(
             + T_SIZE as isize)
             % T_SIZE as isize) as usize;
 
+        // グリッドの範囲内に収める
         let ni = ni.min(SIZE - 1).max(0);
         let nj = nj.min(SIZE - 1).max(0);
 
+        // 遷移後の状態における報酬と価値の和を計算
         total_value += rewards[(ni, nj)] + GAMMA * values[(ni, nj, ntheta)];
 
         valid_samples += 1;
     }
 
+    // 遷移前の状態の価値を遷移後の報酬と価値の期待値と等しくする
     total_value / valid_samples as f64
 }
