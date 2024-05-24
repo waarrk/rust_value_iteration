@@ -70,7 +70,9 @@ fn main() {
 
     // 角度0の平面をArray2に変換してプロット
     let values_2d = values.slice(s![.., .., 0]).to_owned();
-    plot_heatmap(&values_2d).unwrap();
+    let policy_2d = policy.slice(s![.., .., 0]).to_owned();
+
+    plot_heatmap(&values_2d, &policy_2d).unwrap();
 }
 
 // アクションを生成する関数

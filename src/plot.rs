@@ -3,7 +3,10 @@ use plotters::coord::Shift;
 use plotters::prelude::*;
 
 // ヒートマップをプロットする関数
-pub fn plot_heatmap(values: &Array2<f64>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn plot_heatmap(
+    values: &Array2<f64>,
+    policy: &Array2<f64>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let root = BitMapBackend::new("values_heatmap.png", (2000, 900)).into_drawing_area();
     root.fill(&WHITE)?;
 
@@ -25,7 +28,7 @@ pub fn plot_heatmap(values: &Array2<f64>) -> Result<(), Box<dyn std::error::Erro
     plot_single_heatmap(&left_map, &left_colorbar, values, min, max)?;
 
     // 右側のヒートマップ（同じデータを使っていますが、別のデータも使用可能）
-    plot_single_heatmap(&right_map, &right_colorbar, values, min, max)?;
+    plot_single_heatmap(&right_map, &right_colorbar, policy, min, max)?;
 
     root.present()?;
     Ok(())
