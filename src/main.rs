@@ -6,7 +6,7 @@ mod plot;
 use plot::plot_heatmap;
 
 const GAMMA: f64 = 1.0; // 割引率
-const DELTA_LIMIT: f64 = 1e-6; // 収束のしきい値
+const DELTA_LIMIT: f64 = 1e-3; // 収束のしきい値
 const SIZE: usize = 50; // グリッドサイズ
 const THETA_SIZE: usize = 36; // 角度の離散化数
 const MAX_ITER: usize = 1000; // 価値反復の最大回数
@@ -28,6 +28,14 @@ fn main() {
     // ゴールの位置を設定
     let goal = (SIZE - 11, SIZE - 11);
     rewards[goal] = 0.0;
+
+    // 外枠に壁を設定
+    for i in 0..SIZE {
+        rewards[(i, 0)] = -5.0;
+        rewards[(i, SIZE - 1)] = -5.0;
+        rewards[(0, i)] = -5.0;
+        rewards[(SIZE - 1, i)] = -5.0;
+    }
 
     for t in 0..THETA_SIZE {
         values[(goal.0, goal.1, t)] = 0.0;
