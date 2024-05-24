@@ -46,13 +46,14 @@ fn main() {
         let old_values = values.clone();
         for i in 0..SIZE {
             for j in 0..SIZE {
-                for k in 0..T_SIZE {
+                for theta in 0..T_SIZE {
                     if (i, j) == goal {
                         continue;
                     }
-                    let v = values[(i, j, k)];
-                    values[(i, j, k)] = compute_value(&old_values, &rewards, &actions, i, j, k);
-                    delta = delta.max((v - values[(i, j, k)]).abs());
+                    let v = values[(i, j, theta)];
+                    values[(i, j, theta)] =
+                        compute_value(&old_values, &rewards, &actions, i, j, theta);
+                    delta = delta.max((v - values[(i, j, theta)]).abs());
                 }
             }
         }
@@ -116,7 +117,7 @@ fn compute_value(
     actions: &Vec<Action>,
     i: usize,
     j: usize,
-    k: usize,
+    theta: usize,
 ) -> f64 {
     let mut rng = rand::thread_rng();
     let mut total_value = 0.0;
@@ -126,14 +127,14 @@ fn compute_value(
     for _ in 0..NUM_SAMPLES {
         let action_index = rng.gen_range(0..actions.len());
         let action = &actions[action_index];
-        let angle = k as f64 * 2.0 * PI / T_SIZE as f64;
+        let angle = theta as f64 * 2.0 * PI / T_SIZE as f64;
         let ni = (i as isize
             + (action.delta_x * angle.cos() - action.delta_y * angle.sin()).round() as isize)
             as usize;
         let nj = (j as isize
             + (action.delta_x * angle.sin() + action.delta_y * angle.cos()).round() as isize)
             as usize;
-        let nk = ((k as isize
+        let ntheta = ((theta as isize
             + (action.delta_rot * T_SIZE as f64 / (2.0 * PI)).round() as isize
             + T_SIZE as isize)
             % T_SIZE as isize) as usize;
@@ -141,7 +142,7 @@ fn compute_value(
         let ni = ni.min(SIZE - 1).max(0);
         let nj = nj.min(SIZE - 1).max(0);
 
-        total_value += rewards[(ni, nj)] + GAMMA * values[(ni, nj, nk)];
+        total_value += rewards[(ni, nj)] + GAMMA * values[(ni, nj, ntheta)];
 
         valid_samples += 1;
     }
