@@ -1,9 +1,10 @@
 use ndarray::Array2;
+use plotters::coord::Shift;
 use plotters::prelude::*;
 
 // ヒートマップをプロットする関数
 pub fn plot_heatmap(values: &Array2<f64>) -> Result<(), Box<dyn std::error::Error>> {
-    let root = BitMapBackend::new("values_heatmap.png", (1000, 900)).into_drawing_area();
+    let root = BitMapBackend::new("values_heatmap.png", (2000, 900)).into_drawing_area();
     root.fill(&WHITE)?;
 
     // 最小値と最大値を求める
@@ -13,9 +14,32 @@ pub fn plot_heatmap(values: &Array2<f64>) -> Result<(), Box<dyn std::error::Erro
             (min.min(val), max.max(val))
         });
 
-    let (left, right) = root.split_horizontally(850);
+    // 描画エリアを2つのヒートマップ用に左右に分割
+    let (left, right) = root.split_horizontally(1000);
 
-    let mut chart = ChartBuilder::on(&left)
+    // ヒートマップ描画用エリアをさらに分割
+    let (left_map, left_colorbar) = left.split_horizontally(900);
+    let (right_map, right_colorbar) = right.split_horizontally(900);
+
+    // 左側のヒートマップ
+    plot_single_heatmap(&left_map, &left_colorbar, values, min, max)?;
+
+    // 右側のヒートマップ（同じデータを使っていますが、別のデータも使用可能）
+    plot_single_heatmap(&right_map, &right_colorbar, values, min, max)?;
+
+    root.present()?;
+    Ok(())
+}
+
+// 単一のヒートマップを描画する関数
+fn plot_single_heatmap(
+    map_area: &DrawingArea<BitMapBackend, Shift>,
+    colorbar_area: &DrawingArea<BitMapBackend, Shift>,
+    values: &Array2<f64>,
+    min: f64,
+    max: f64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut chart = ChartBuilder::on(map_area)
         .margin(20)
         .x_label_area_size(30)
         .y_label_area_size(30)
@@ -45,7 +69,7 @@ pub fn plot_heatmap(values: &Array2<f64>) -> Result<(), Box<dyn std::error::Erro
     }
 
     // カラーバーを描画
-    let mut chart_2 = ChartBuilder::on(&right)
+    let mut chart_2 = ChartBuilder::on(colorbar_area)
         .margin(20)
         .set_label_area_size(LabelAreaPosition::Right, 30)
         .x_label_area_size(30)
@@ -65,6 +89,6 @@ pub fn plot_heatmap(values: &Array2<f64>) -> Result<(), Box<dyn std::error::Erro
         let color = HSLColor(240.0 / 360.0 - norm_value * 240.0 / 360.0, 1.0, 0.5);
         Rectangle::new([(0, value), (1, next_value)], color.filled())
     }))?;
-    root.present()?;
+
     Ok(())
 }

@@ -21,15 +21,14 @@ struct Action {
 }
 
 fn main() {
-    // 報酬を初期化。初期値は全て-1.0
     let mut rewards = Array2::from_elem((SIZE, SIZE), -1.0);
+    let mut values = Array3::from_elem((SIZE, SIZE, THETA_SIZE), -100.0);
+    let mut policy = Array3::from_elem((SIZE, SIZE, THETA_SIZE), -1.0);
 
     // ゴールの位置を設定
     let goal = (SIZE - 11, SIZE - 11);
     rewards[goal] = 0.0;
 
-    // 初期価値を-100に設定
-    let mut values = Array3::from_elem((SIZE, SIZE, THETA_SIZE), -100.0);
     for t in 0..THETA_SIZE {
         values[(goal.0, goal.1, t)] = 0.0;
     }
@@ -53,6 +52,7 @@ fn main() {
                     let v = values[(i, j, theta)];
                     values[(i, j, theta)] =
                         compute_value(&old_values, &rewards, &actions, i, j, theta);
+                    policy[(i, j, theta)] = 0.0;
                     delta = delta.max((v - values[(i, j, theta)]).abs());
                 }
             }
