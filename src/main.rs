@@ -138,12 +138,11 @@ fn compute_value(
             + T_SIZE as isize)
             % T_SIZE as isize) as usize;
 
-        // 範囲外チェック
-        if ni >= SIZE || nj >= SIZE {
-            total_value += rewards[(i, j)] + GAMMA * values[(i, j, k)];
-        } else {
-            total_value += rewards[(i, j)] + GAMMA * values[(ni, nj, nk)];
-        }
+        let ni = ni.min(SIZE - 1).max(0);
+        let nj = nj.min(SIZE - 1).max(0);
+
+        total_value += rewards[(ni, nj)] + GAMMA * values[(ni, nj, nk)];
+
         valid_samples += 1;
     }
 
