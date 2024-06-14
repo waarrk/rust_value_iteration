@@ -1,158 +1,165 @@
 use ndarray::{s, Array2, Array3};
-use rand::Rng;
-use std::f64::consts::PI;
 use std::time::Instant;
 mod plot;
 use plot::plot_heatmap;
 
 const GAMMA: f64 = 1.0; // 割引率
-const DELTA_LIMIT: f64 = 1e-3; // 収束のしきい値
-const SIZE: usize = 50; // グリッドサイズ
+const DELTA_LIMIT: f64 = 1.0 + 1e-6; // 収束判定の閾値
+const SIZE: usize = 100; // グリッドサイズ
 const THETA_SIZE: usize = 36; // 角度の離散化数
 const MAX_ITER: usize = 1000; // 価値反復の最大回数
-const NUM_SAMPLES: usize = 10; // ランダムサンプリングの回数
-
-// アクションを表す構造体
-#[derive(Clone)]
-struct Action {
-    delta_x: f64,   // x方向の移動距離
-    delta_y: f64,   // y方向の移動距離
-    delta_rot: f64, // 回転角度
-}
 
 fn main() {
-    let mut rewards = Array2::from_elem((SIZE, SIZE), -1.0);
-    let mut values = Array3::from_elem((SIZE, SIZE, THETA_SIZE), -100.0);
-    let mut policy = Array3::from_elem((SIZE, SIZE, THETA_SIZE), -1.0);
+    let (mut rewards, mut values) = initialize_arrays();
+    set_goal(&mut rewards);
+    set_boundaries(&mut rewards);
+    set_obstacles(&mut rewards);
+    set_puddle(&mut rewards);
 
-    // ゴールの位置を設定
+    initialize_goal_values(&mut values);
+
+    let actions = generate_actions();
+
+    // 計測開始
+    let start = Instant::now();
+
+    // 価値反復アルゴリズムの実行
+    value_iteration(&mut values, &rewards, &actions);
+
+    // 計測終了
+    let duration = start.elapsed();
+    println!("実行時間: {:?}", duration);
+
+    // 価値関数の描画
+    let values_2d = values.slice(s![.., .., 0]).to_owned();
+    plot_heatmap(&values_2d).unwrap();
+}
+
+fn initialize_arrays() -> (Array2<f64>, Array3<f64>) {
+    let rewards = Array2::from_elem((SIZE, SIZE), -1.0);
+    let values = Array3::from_elem((SIZE, SIZE, THETA_SIZE), -100.0);
+    (rewards, values)
+}
+
+fn set_goal(rewards: &mut Array2<f64>) {
     let goal = (SIZE - 11, SIZE - 11);
     rewards[goal] = 0.0;
+}
 
-    // 外枠に壁を設定
+fn set_boundaries(rewards: &mut Array2<f64>) {
     for i in 0..SIZE {
         rewards[(i, 0)] = -5.0;
-        rewards[(i, SIZE - 1)] = -5.0;
+        rewards[(i, SIZE - 1)] = -100.0;
         rewards[(0, i)] = -5.0;
-        rewards[(SIZE - 1, i)] = -5.0;
+        rewards[(SIZE - 1, i)] = -100.0;
     }
+}
 
+fn set_obstacles(rewards: &mut Array2<f64>) {
+    let obstacle_start = SIZE / 4;
+    let obstacle_end = 2 * SIZE / 4;
+    for i in obstacle_start..obstacle_end {
+        for j in obstacle_start..obstacle_end {
+            rewards[(i, j)] = -20.0;
+        }
+    }
+}
+
+fn set_puddle(rewards: &mut Array2<f64>) {
+    let obstacle_end = 2 * SIZE / 4;
+    let puddle_start = obstacle_end;
+    let puddle_end = obstacle_end + (obstacle_end - (SIZE / 4)) / 2;
+    for i in puddle_start..puddle_end {
+        for j in puddle_start..puddle_end {
+            if i < SIZE && j < SIZE {
+                rewards[(i, j)] = -10.0;
+            }
+        }
+    }
+}
+
+fn initialize_goal_values(values: &mut Array3<f64>) {
+    let goal = (SIZE - 11, SIZE - 11);
     for t in 0..THETA_SIZE {
         values[(goal.0, goal.1, t)] = 0.0;
     }
+}
 
-    // アクションの生成
-    let actions = generate_actions();
+fn generate_actions() -> Vec<(isize, isize, isize)> {
+    vec![
+        (0, 1, 0),   // 右
+        (1, 0, 0),   // 下
+        (0, -1, 0),  // 左
+        (-1, 0, 0),  // 上
+        (1, 1, 0),   // 右下
+        (-1, 1, 0),  // 左下
+        (1, -1, 0),  // 右上
+        (-1, -1, 0), // 左上
+        (0, 0, 1),   // 時計回り
+        (0, 0, -1),  // 反時計回り
+    ]
+}
 
-    // 実行時間の計測開始
-    let start = Instant::now();
-
-    // 価値反復法の実行
-    for _ in 0..MAX_ITER {
+fn value_iteration(
+    values: &mut Array3<f64>,
+    rewards: &Array2<f64>,
+    actions: &[(isize, isize, isize)],
+) {
+    for iter in 0..MAX_ITER {
         let mut delta: f64 = 0.0;
         let old_values = values.clone();
+
         for i in 0..SIZE {
             for j in 0..SIZE {
                 for theta in 0..THETA_SIZE {
-                    if (i, j) == goal {
-                        continue;
-                    }
-                    let v = values[(i, j, theta)];
-                    values[(i, j, theta)] =
-                        compute_value(&old_values, &rewards, &actions, i, j, theta);
-                    policy[(i, j, theta)] = 0.0;
-                    delta = delta.max((v - values[(i, j, theta)]).abs());
+                    // 全ての行動に対して最大の価値を計算
+                    let max_value = actions
+                        .iter()
+                        .map(|action| calculate_value(i, j, theta, *action, &old_values, rewards))
+                        .fold(f64::NEG_INFINITY, f64::max);
+
+                    // 価値関数の更新
+                    delta = delta.max((max_value - values[(i, j, theta)]).abs());
+                    values[(i, j, theta)] = max_value;
                 }
             }
         }
+
+        println!("{}回目: delta = {}", iter, delta);
+
         if delta < DELTA_LIMIT {
+            println!("収束しました: {} 回で終了", iter);
             break;
         }
     }
-
-    // 実行時間の計測終了
-    let duration = start.elapsed();
-
-    // 実行時間を表示
-    println!("実行時間: {:?}", duration);
-
-    // 角度0の平面をArray2に変換してプロット
-    let values_2d = values.slice(s![.., .., 0]).to_owned();
-    let policy_2d = policy.slice(s![.., .., 0]).to_owned();
-
-    plot_heatmap(&values_2d, &policy_2d).unwrap();
 }
 
-// アクションを生成する関数
-fn generate_actions() -> Vec<Action> {
-    let mut actions = Vec::new();
-
-    // 右回転
-    actions.push(Action {
-        delta_x: 0.0,
-        delta_y: 0.0,
-        delta_rot: -2.0,
-    });
-
-    // 前進
-    actions.push(Action {
-        delta_x: 1.0,
-        delta_y: 0.0,
-        delta_rot: 0.0,
-    });
-
-    // 左回転
-    actions.push(Action {
-        delta_x: 0.0,
-        delta_y: 0.0,
-        delta_rot: 2.0,
-    });
-
-    actions
-}
-
-// 新しい価値を計算する関数
-fn compute_value(
-    values: &Array3<f64>,
-    rewards: &Array2<f64>,
-    actions: &Vec<Action>,
+fn calculate_value(
     i: usize,
     j: usize,
     theta: usize,
+    action: (isize, isize, isize),
+    old_values: &Array3<f64>,
+    rewards: &Array2<f64>,
 ) -> f64 {
-    let mut rng = rand::thread_rng();
-    let mut total_value = 0.0;
-    let mut valid_samples = 0;
+    let (next_i, next_j, next_theta) = next_state(i, j, theta, action);
+    let reward = rewards[(next_i, next_j)];
+    let move_cost = if action.0 != 0 && action.1 != 0 {
+        (2.0 as f64).sqrt()
+    } else {
+        1.0
+    };
+    reward + GAMMA * old_values[(next_i, next_j, next_theta)] - move_cost
+}
 
-    // ランダムにNUM_SAMPLES回サンプリング
-    for _ in 0..NUM_SAMPLES {
-        // ランダムにアクションを選択
-        let action_index = rng.gen_range(0..actions.len());
-        let action = &actions[action_index];
-        let angle = theta as f64 * 2.0 * PI / THETA_SIZE as f64;
-
-        // 移動後の状態を計算
-        let ni = (i as isize
-            + (action.delta_x * angle.cos() - action.delta_y * angle.sin()).round() as isize)
-            as usize;
-        let nj = (j as isize
-            + (action.delta_x * angle.sin() + action.delta_y * angle.cos()).round() as isize)
-            as usize;
-        let ntheta = ((theta as isize
-            + (action.delta_rot * THETA_SIZE as f64 / (2.0 * PI)).round() as isize
-            + THETA_SIZE as isize)
-            % THETA_SIZE as isize) as usize;
-
-        // グリッドの範囲内に収める
-        let ni = ni.min(SIZE - 1).max(0);
-        let nj = nj.min(SIZE - 1).max(0);
-
-        // 遷移後の状態における報酬と価値の和を計算
-        total_value += rewards[(ni, nj)] + GAMMA * values[(ni, nj, ntheta)];
-
-        valid_samples += 1;
-    }
-
-    // 遷移前の状態の価値を遷移後の報酬と価値の期待値と等しくする
-    total_value / valid_samples as f64
+fn next_state(
+    i: usize,
+    j: usize,
+    theta: usize,
+    action: (isize, isize, isize),
+) -> (usize, usize, usize) {
+    let ni = ((i as isize + action.0).clamp(0, (SIZE - 1) as isize)) as usize;
+    let nj = ((j as isize + action.1).clamp(0, (SIZE - 1) as isize)) as usize;
+    let ntheta = ((theta as isize + action.2).rem_euclid(THETA_SIZE as isize)) as usize;
+    (ni, nj, ntheta)
 }
